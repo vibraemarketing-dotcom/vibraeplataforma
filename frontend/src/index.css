@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --vibrae-primary: #A18133;
+  --vibrae-primary-dark: #806525;
+  --vibrae-primary-light: #E8DEC5;
+  --vibrae-dark: #231F20;
+  --vibrae-dark-deep: #171415;
+  --vibrae-dark-soft: #332F30;
+  --vibrae-bg: #F7F5F2;
+  --vibrae-bg-2: #EFECE7;
+  --vibrae-surface: #FFFFFF;
+  --vibrae-text: #231F20;
+  --vibrae-text-secondary: #6F6F6C;
+  --vibrae-text-muted: #959693;
+  --vibrae-border: #E2E0DC;
+  --vibrae-border-strong: #D8D7D3;
+
+  /* shadcn tokens mapeados para VIBRAE */
+  --background: 36 20% 96%;
+  --foreground: 350 4% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 350 4% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 350 4% 13%;
+  --primary: 40 51% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 36 15% 92%;
+  --secondary-foreground: 350 4% 13%;
+  --muted: 36 15% 92%;
+  --muted-foreground: 60 2% 45%;
+  --accent: 40 51% 42%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 36 12% 87%;
+  --input: 36 12% 87%;
+  --ring: 40 51% 42%;
+  --radius: 0.65rem;
+}
+
+* { border-color: hsl(var(--border)); }
+
+html, body, #root {
+  height: 100%;
+  background: var(--vibrae-bg);
+  color: var(--vibrae-text);
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { margin: 0; }
+
+/* Typography */
+h1, h2, h3, h4, .font-display {
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: -0.01em;
+}
+.font-serif-display {
+  font-family: 'Cormorant Garamond', serif;
+  letter-spacing: 0;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--vibrae-border-strong); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--vibrae-text-muted); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Utility */
+.vibrae-gold { color: var(--vibrae-primary); }
+.vibrae-gold-bg { background: var(--vibrae-primary); }
+.vibrae-dark-bg { background: var(--vibrae-dark); }
+
+.card-elev {
+  background: #fff;
+  border: 1px solid var(--vibrae-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(35,31,32,0.03);
+}
+
+.gold-underline {
+  position: relative;
+}
+.gold-underline::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -6px;
+  width: 32px; height: 2px;
+  background: var(--vibrae-primary);
+}
+
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--vibrae-primary);
+  box-shadow: 0 0 0 0 rgba(161,129,51, 0.7);
+  animation: vibrae-pulse 2s infinite;
+}
+@keyframes vibrae-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(161,129,51, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(161,129,51, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(161,129,51, 0); }
+}
+
+/* Kanban column bg */
+.kanban-col {
+  background: var(--vibrae-bg-2);
+  border: 1px solid var(--vibrae-border);
+  border-radius: 12px;
+}
+
+/* Sidebar active */
+.side-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  color: #cfcac6; font-weight: 500; font-size: 14px;
+  cursor: pointer; position: relative;
+  transition: background .18s ease, color .18s ease;
+}
+.side-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+.side-item.active {
+  background: rgba(161,129,51, 0.18);
+  color: #fff;
+}
+.side-item.active::before {
+  content: '';
+  position: absolute; left: -14px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 3px;
+  background: var(--vibrae-primary);
+}
+.side-item.active .side-icon { color: var(--vibrae-primary); }
+
+/* Editorial fade-in */
+.fade-in { animation: fadeIn .35s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+
+/* Login backdrop */
+.login-bg {
+  background:
+    radial-gradient(1200px 600px at 80% 20%, rgba(161,129,51,0.10), transparent 60%),
+    radial-gradient(900px 500px at 10% 90%, rgba(35,31,32,0.06), transparent 60%),
+    var(--vibrae-bg);
+}

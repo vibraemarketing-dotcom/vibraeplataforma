@@ -1,0 +1,40 @@
+{
+  "summary": "Phase 1 MVP smoke-tested end-to-end. Backend auth, dashboard KPIs, leads, clients, content, portal summary and client isolation all working. Frontend flows verified: admin login -> dashboard with correct KPIs & 2 Recharts; navigation to CRM/Clients/Content Studio; client detail with Content Studio Kanban rendering; WhatsApp link on client card; logout returns to /login; client portal login redirects to /portal with approve/adjust buttons present.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "Backend POST /api/auth/login (admin, Dr.Rafael, Aurora) - all return JWT token",
+    "Backend GET /api/dashboard/summary - KPIs: active_clients=3, mrr=13800, leads_open=7, contents_awaiting_approval=2 (matches spec)",
+    "Backend GET /api/leads - 7 leads returned",
+    "Backend GET /api/clients - 5 clients returned",
+    "Backend GET /api/content (admin) - 9 contents",
+    "Backend content isolation: Aurora user sees only 2 items with own client_id (Dr. Rafael's contents hidden)",
+    "Backend GET /api/portal/summary for client_admin (Dr.Rafael) returns client & content data",
+    "Frontend: admin login redirects to /app/dashboard",
+    "Frontend: Dashboard KPI cards render correct values (3, R$ 13.800,00, 7, 2)",
+    "Frontend: 2 Recharts SVGs render (Conteudos por status + Leads por etapa)",
+    "Frontend: CRM page loads with 'Novo lead' button visible (data-testid crm-new-lead-btn)",
+    "Frontend: Clients page renders 5 client cards with data-testid client-card-{id}",
+    "Frontend: WhatsApp wa.me anchor present on client card",
+    "Frontend: Client detail -> Content Studio tab renders content-kanban",
+    "Frontend: Logout button returns to /login",
+    "Frontend: Client portal login (cliente@drrafael.com) redirects to /portal; portal-page renders with approve/adjust buttons"
+  ],
+  "failed": [],
+  "action_items": [
+    "Minor (non-blocking) React hydration warning: <a> inside <a> descendant in Clients.jsx line ~60 (WhatsApp anchor nested inside a Link card). Consider replacing outer Link with div+onClick or moving WhatsApp button outside the Link wrapper to eliminate console error."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": {
+    "not_tested_deferred_to_full_qa": [
+      "Actually creating a new lead via 'Novo lead' modal end-to-end",
+      "Moving lead across stages via 'Mover para' dropdown",
+      "Converting lead -> client and redirect to client detail",
+      "Creating new content, moving content status, 'Enviar ao cliente' -> aguardando_aprovacao",
+      "Portal approve flow with confirm dialog -> content=aprovado",
+      "Portal adjust flow with required comment -> ajuste_solicitado + version increment + history preserved",
+      "Session persistence after page refresh via localStorage vibrae_token"
+    ]
+  }
+}
