@@ -16,7 +16,8 @@ arquivos (eles já estão no `.gitignore`).
 ### Integrações (opcionais — cada uma liga um recurso)
 | Variável | Liga o quê | Onde obter |
 |----------|-----------|------------|
-| `EMERGENT_LLM_KEY` | IA VIBRAE (geração de conteúdo) e transcrição de reuniões (Whisper) | Chave do Emergent |
+| `ANTHROPIC_API_KEY` | **IA VIBRAE** (geração de legendas, roteiros, ideias, carrosséis, hashtags) via Claude | console.anthropic.com |
+| `ANTHROPIC_MODEL` | *(opcional)* modelo da Claude. Padrão `claude-opus-4-8`. Para baratear: `claude-haiku-4-5` ou `claude-sonnet-5` | — |
 | `STRIPE_SECRET_KEY` | Cobrança/assinaturas das agências (multi-agência) | Painel do Stripe |
 | `STRIPE_WEBHOOK_SECRET` | Confirmação automática de pagamento via webhook do Stripe | Painel do Stripe → Webhooks |
 | `META_APP_ID` | OAuth "Conectar via Meta" (Instagram real) | developers.facebook.com |

@@ -1,12 +1,16 @@
 """IA VIBRAE — geração de conteúdo condicionada ao Brand Kit do cliente.
-Usa Claude Sonnet 4.5 via emergentintegrations."""
+Usa a API oficial da Claude (Anthropic) via SDK `anthropic`.
+
+Configuração (variáveis de ambiente):
+  ANTHROPIC_API_KEY  — chave da conta Anthropic (obrigatória para a IA funcionar)
+  ANTHROPIC_MODEL    — opcional; padrão claude-opus-4-8. Para reduzir custo, pode
+                       usar claude-haiku-4-5 (mais barato) ou claude-sonnet-5.
+"""
 import os
 import json
-import uuid
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from anthropic import AsyncAnthropic
 
-MODEL = "claude-sonnet-4-5-20250929"
-PROVIDER = "anthropic"
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 
 TOOL_INSTRUCTIONS = {
     "caption": {
@@ -96,7 +100,12 @@ async def generate(tool: str, client: dict, brand_kit: dict, objective: str, ori
     if tool not in TOOL_INSTRUCTIONS:
         raise ValueError(f"Ferramenta inválida: {tool}")
 
-    api_key = os.environ["EMERGENT_LLM_KEY"]
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "IA VIBRAE não configurada: defina ANTHROPIC_API_KEY no ambiente "
+            "(chave da conta Anthropic) para gerar conteúdo."
+        )
     system_prompt = build_system_prompt(client, brand_kit)
     tool_cfg = TOOL_INSTRUCTIONS[tool]
 
@@ -113,15 +122,14 @@ RESPONDA APENAS COM JSON válido seguindo este schema (sem markdown, sem ```):
 {json.dumps(tool_cfg['schema'], indent=2, ensure_ascii=False)}
 """
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"vibrae-ai-{uuid.uuid4()}",
-        system_message=system_prompt,
-    ).with_model(PROVIDER, MODEL)
-
-    msg = UserMessage(text=user_prompt)
-    raw = await chat.send_message(msg)
-    text = raw if isinstance(raw, str) else str(raw)
+    ai = AsyncAnthropic(api_key=api_key)
+    message = await ai.messages.create(
+        model=MODEL,
+        max_tokens=3000,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    text = "".join(b.text for b in message.content if b.type == "text")
     # tenta parsear como JSON
     parsed = _try_parse_json(text)
     return {"tool": tool, "label": tool_cfg["label"], "raw": text, "data": parsed}

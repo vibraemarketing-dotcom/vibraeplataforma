@@ -11,6 +11,7 @@ bcrypt==4.1.3
 python-multipart>=0.0.9
 httpx>=0.27.0
 stripe>=7.0.0,<11.0.0
+anthropic>=0.49.0
 tzdata>=2024.2
 
 # Testes (opcional; não afeta o runtime em produção)
