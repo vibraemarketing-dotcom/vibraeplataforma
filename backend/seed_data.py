@@ -176,6 +176,7 @@ async def run_seed(db, hash_password):
 async def _seed_phase2_if_missing(db):
     """Popula Brand Kits + Financeiro se ainda não existirem."""
     from datetime import timedelta
+    await _seed_phase3_if_missing(db)
 
     # Brand Kits
     if await db.brand_kits.count_documents({}) == 0:
@@ -332,3 +333,146 @@ async def _seed_phase2_if_missing(db):
                     "created_at": iso(), "updated_at": iso(),
                     "paid_at": (due + timedelta(days=1)).isoformat(),
                 })
+
+
+async def _seed_phase3_if_missing(db):
+    """Popula Stories, Métricas/Relatórios e Tarefas para demo."""
+    from datetime import timedelta
+
+    clients = await db.clients.find({}, {"_id": 0}).to_list(50)
+    by_name = {c["trade_name"]: c for c in clients}
+    aurora = by_name.get("Clínica Aurora Estética")
+    rafael = by_name.get("Dr. Rafael Nunes — Ortopedia")
+
+    # Stories em Sequência
+    if await db.story_sequences.count_documents({}) == 0 and aurora:
+        seq = {
+            "id": str(uuid.uuid4()),
+            "client_id": aurora["id"],
+            "title": "Bastidores: Protocolo Aurora Renew",
+            "objective": "Mostrar autoridade técnica e humanizar o atendimento",
+            "status": "aguardando_aprovacao",
+            "version": 1,
+            "scheduled_at": iso(datetime.now(timezone.utc) + timedelta(days=2)),
+            "created_at": iso(), "updated_at": iso(),
+            "frames": [
+                {"index": 0, "text": "Você conhece o Protocolo Aurora Renew?", "cta": "Toque para saber", "link": "",
+                 "background": "#231F20", "text_color": "#F7F5F2", "media_url": "",
+                 "interaction": "none", "poll_question": "", "poll_options": []},
+                {"index": 1, "text": "3 etapas · avaliação, protocolo individualizado, acompanhamento", "cta": "",
+                 "background": "#A18133", "text_color": "#F7F5F2", "media_url": "",
+                 "interaction": "none", "poll_question": "", "poll_options": []},
+                {"index": 2, "text": "Cada pele responde de um jeito.", "cta": "",
+                 "background": "#EFECE7", "text_color": "#231F20", "media_url": "",
+                 "interaction": "poll", "poll_question": "Já fez avaliação com biomédica?",
+                 "poll_options": ["Sim", "Ainda não"]},
+                {"index": 3, "text": "Agende sua avaliação e comece pelo caminho certo.",
+                 "cta": "Agendar avaliação", "link": "https://wa.me/5511987651234",
+                 "background": "#231F20", "text_color": "#A18133", "media_url": "",
+                 "interaction": "link", "poll_question": "", "poll_options": []},
+            ],
+            "history": [{"version": 1, "action": "sent_to_approval", "user": "Bianca Alves", "timestamp": iso()}],
+        }
+        await db.story_sequences.insert_one(seq)
+
+    # Métricas dos últimos 3 meses (Aurora e Rafael)
+    if await db.metrics.count_documents({}) == 0:
+        today = datetime.now(timezone.utc)
+        base_data = [
+            (aurora, [
+                {"followers": 8420, "followers_delta": 180, "reach": 42500, "impressions": 68000,
+                 "engagement": 4.8, "profile_visits": 3200, "website_clicks": 148,
+                 "saves": 220, "shares": 95, "comments": 340, "stories_reach": 6800, "reels_views": 28000},
+                {"followers": 8600, "followers_delta": 220, "reach": 48200, "impressions": 74000,
+                 "engagement": 5.1, "profile_visits": 3480, "website_clicks": 172,
+                 "saves": 258, "shares": 112, "comments": 388, "stories_reach": 7100, "reels_views": 32000},
+                {"followers": 8820, "followers_delta": 260, "reach": 55600, "impressions": 82000,
+                 "engagement": 5.6, "profile_visits": 3820, "website_clicks": 205,
+                 "saves": 312, "shares": 140, "comments": 442, "stories_reach": 7900, "reels_views": 38400},
+            ]),
+            (rafael, [
+                {"followers": 12100, "followers_delta": 340, "reach": 68000, "impressions": 96000,
+                 "engagement": 6.2, "profile_visits": 5100, "website_clicks": 380,
+                 "saves": 480, "shares": 210, "comments": 620, "stories_reach": 9400, "reels_views": 52000},
+                {"followers": 12440, "followers_delta": 420, "reach": 74800, "impressions": 108000,
+                 "engagement": 6.8, "profile_visits": 5480, "website_clicks": 442,
+                 "saves": 540, "shares": 258, "comments": 704, "stories_reach": 10100, "reels_views": 61000},
+                {"followers": 12860, "followers_delta": 460, "reach": 82400, "impressions": 118000,
+                 "engagement": 7.2, "profile_visits": 6020, "website_clicks": 512,
+                 "saves": 616, "shares": 294, "comments": 802, "stories_reach": 11400, "reels_views": 68200},
+            ]),
+        ]
+        for client, months in base_data:
+            if not client: continue
+            for i, m in enumerate(months):
+                # 3 meses atrás, 2 meses atrás, 1 mês atrás
+                target = today - timedelta(days=(3 - i) * 30)
+                doc = {"id": str(uuid.uuid4()), "client_id": client["id"],
+                       "month": target.month, "year": target.year,
+                       "source": "manual", "created_at": iso(), "updated_at": iso(), **m}
+                await db.metrics.insert_one(doc)
+
+    # Relatório mensal do mês passado
+    if await db.reports.count_documents({}) == 0 and aurora:
+        last_month = datetime.now(timezone.utc) - timedelta(days=30)
+        # top contents (aprovados/publicados do Aurora)
+        aurora_contents = await db.content.find(
+            {"client_id": aurora["id"], "status": {"$in": ["aprovado", "publicado"]}}, {"_id": 0}
+        ).to_list(5)
+        report = {
+            "id": str(uuid.uuid4()),
+            "client_id": aurora["id"],
+            "month": last_month.month, "year": last_month.year,
+            "summary": "Mês de consolidação da autoridade técnica com foco em conteúdo educativo. Aumento consistente de alcance e engajamento após revisão da estratégia editorial.",
+            "highlights": [
+                "Aumento de 5,6% na taxa de engajamento — melhor do trimestre",
+                "Carrossel 'Peeling profissional x caseiro' virou referência",
+                "Salvamentos cresceram 21% mês a mês",
+                "260 novos seguidores qualificados",
+            ],
+            "learnings": [
+                "Conteúdos que respondem dúvidas comuns geram mais salvamentos",
+                "Reels curtos (<20s) mantêm 3x mais retenção",
+            ],
+            "risks": [
+                "Sazonalidade de fim de ano pode reduzir agendamentos em dezembro",
+            ],
+            "next_steps": [
+                "Campanha temática de 'Preparação de pele para o verão'",
+                "Ativar sequência de Stories de bastidores 2x por semana",
+                "Testar Reels com formato de mito x verdade",
+            ],
+            "top_content_ids": [c["id"] for c in aurora_contents[:3]],
+            "agency_notes": "Cliente respondeu bem ao redirecionamento estratégico. Recomenda-se manter cadência atual.",
+            "status": "publicado",
+            "created_at": iso(), "updated_at": iso(),
+        }
+        await db.reports.insert_one(report)
+
+    # Tarefas com Gantt
+    if await db.tasks.count_documents({}) == 0:
+        today = datetime.now(timezone.utc)
+        tasks_data = [
+            ("Captação mensal — Aurora Estética", "captacao", aurora, today, 1, "Bianca Alves", "em_andamento", "alta"),
+            ("Edição dos vídeos captados — Aurora", "producao", aurora, today + timedelta(days=2), 4, "João Editor", "pendente", "alta"),
+            ("Planejamento editorial — Aurora Nov", "geral", aurora, today - timedelta(days=1), 2, "Marina Costa", "em_andamento", "media"),
+            ("Campanha 'Verão sem preocupação' — Aurora", "campanha", aurora, today + timedelta(days=5), 20, "Marina Costa", "pendente", "alta"),
+            ("Captação — Dr. Rafael Nunes", "captacao", rafael, today + timedelta(days=1), 1, "Bianca Alves", "pendente", "media"),
+            ("Roteiro de série 'Mitos ortopédicos'", "producao", rafael, today + timedelta(days=3), 5, "Marina Costa", "pendente", "media"),
+            ("Edição série mitos — Dr. Rafael", "producao", rafael, today + timedelta(days=8), 4, "João Editor", "pendente", "media"),
+            ("Reunião estratégica trimestral — Dr. Rafael", "geral", rafael, today + timedelta(days=10), 0, "Ana Ribeiro", "pendente", "alta"),
+            ("Relatório mensal — Aurora", "geral", aurora, today + timedelta(days=3), 1, "Marina Costa", "pendente", "media"),
+            ("Relatório mensal — Dr. Rafael", "geral", rafael, today + timedelta(days=3), 1, "Marina Costa", "pendente", "media"),
+        ]
+        for title, kind, client, start, dur, assignee, status, prio in tasks_data:
+            if not client: continue
+            await db.tasks.insert_one({
+                "id": str(uuid.uuid4()),
+                "client_id": client["id"],
+                "title": title, "kind": kind,
+                "start_date": start.date().isoformat(),
+                "end_date": (start + timedelta(days=dur)).date().isoformat(),
+                "assignee": assignee, "status": status, "priority": prio,
+                "description": "", "depends_on": None,
+                "created_at": iso(), "updated_at": iso(),
+            })

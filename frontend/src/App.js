@@ -12,6 +12,10 @@ import ClientPortal from "@/pages/ClientPortal";
 import AIStudio from "@/pages/AIStudio";
 import Financeiro from "@/pages/Financeiro";
 import Calendario from "@/pages/Calendario";
+import ArtEditor from "@/pages/ArtEditor";
+import StoriesStudio from "@/pages/StoriesStudio";
+import Relatorios from "@/pages/Relatorios";
+import Tarefas from "@/pages/Tarefas";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -39,6 +43,10 @@ function App() {
             <Route path="ia" element={<AIStudio />} />
             <Route path="financeiro" element={<Financeiro />} />
             <Route path="calendario" element={<Calendario />} />
+            <Route path="artes" element={<ArtEditor />} />
+            <Route path="stories" element={<StoriesStudio />} />
+            <Route path="relatorios" element={<Relatorios />} />
+            <Route path="tarefas" element={<Tarefas />} />
           </Route>
 
           <Route path="/portal" element={<AppLayout requiredArea="client" />}>

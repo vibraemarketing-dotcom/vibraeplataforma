@@ -1,0 +1,47 @@
+{
+  "summary": "VIBRAE OS Phase 3 comprehensive test: Backend 19/19 pytest cases passed (Stories, Metrics, Reports, Tasks/Gantt + regression on Phase 1-2 endpoints). Frontend UI flows for all 4 new modules verified: /app/tarefas (10 tasks, gantt bar status cycle, Nova tarefa dialog, 4 capacity assignees), /app/stories (Aurora seq with 4 frames, PhonePreview, FrameEditor, add-frame, batch approve visible when status=aguardando_aprovacao), /app/relatorios (1 seeded report, detail dialog, Novo relatório editor dialog), /app/artes (client/format select, add text/logo layers, PNG export triggers browser download via html-to-image). Sidebar shows all 11 items. Login admin@vibrae.com/vibrae2026 works. Phase 1+2 regression pages (Dashboard, CRM, Content, Calendário, IA VIBRAE, Financeiro) all load without errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Gerador de Artes — PNG export",
+        "issue": "html-to-image logs 2 console errors while embedding Google Fonts CSS: 'Error inlining remote css file SecurityError: Failed to read the cssRules property from CSSStyleSheet' (cross-origin CSSOM restriction on fonts.googleapis.com). The PNG file still downloads successfully (verified via Playwright download event), but any custom webfont (e.g. font-serif-display) will silently fall back to system fonts inside the exported PNG. Non-blocking, but user may notice a font mismatch in the downloaded image.",
+        "affected_selectors": ["[data-testid=\"art-export-btn\"]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Multiple dialogs (NewTaskDialog, ReportEditor, ReportDetail, NewSequenceDialog)",
+        "issues": [
+          "Radix UI accessibility warning 'Missing Description or aria-describedby={undefined} for DialogContent'. All modal dialogs emit this warning to console. Fix: add <DialogDescription/> child or aria-describedby prop to each DialogContent. Accessibility-only, not a functional bug."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase3.py",
+    "/app/test_reports/pytest/phase3_results.xml"
+  ],
+  "action_items": [
+    "(Optional / low-priority) Add DialogDescription to Radix DialogContent in Tarefas.jsx, StoriesStudio.jsx, Relatorios.jsx to silence a11y warnings.",
+    "(Optional) In ArtEditor.jsx exportPng, pass fontEmbedCSS option (pre-fetched font CSS as string) to htmlToImage.toPng() to avoid the cross-origin cssRules error and preserve custom fonts in the exported PNG. Reference: https://github.com/bubkoo/html-to-image#fontembedcss"
+  ],
+  "critical_code_review_comments": [
+    "phase3_endpoints.py — GET /tasks/capacity is registered AFTER PATCH/DELETE /tasks/{tid}. FastAPI matches by HTTP method + path, and no GET /tasks/{tid} exists, so 'capacity' is safely reachable today. However, if a future GET /tasks/{tid} is added, it will shadow /tasks/capacity. Recommend moving the capacity route ABOVE the {tid} routes to be safe.",
+    "phase3_endpoints.py — list_reports/list_metrics/list_tasks/list_sequences do not restrict by year to avoid stale test data leaking into UI. After running the backend test suite, TEST_ reports for year=2020 and TEST_ metrics for month=1/2, year=2020 remain in the database (only 2 documents, invisible in normal UI because month/year filter is on the editor, not the list). Consider a cleanup route or scoping the list by current fiscal window in a future iteration.",
+    "StoriesStudio.jsx — 'Aprovar toda a sequência' button only renders when status === 'aguardando_aprovacao'. After a demo where an admin approves, the button disappears and demo state cannot be re-tested from the UI without a DB reset. Consider adding a 'Reverter para rascunho' action in dev/staging, or documenting the demo-reset flow.",
+    "ArtEditor.jsx — html-to-image call currently emits a benign but visible CORS error when trying to read Google Fonts stylesheet. Passing a pre-embedded font CSS string via fontEmbedCSS option removes the error and produces PNGs with the intended typography.",
+    "seed_data.py — _seed_phase3_if_missing seeds tasks using the local time module's default 'today' at import time inside the function. Since the seed runs on backend startup and dates are anchored to today, the Gantt 30-day window always contains all seeded tasks; this is fine for demo. Just noting this so the tests remain deterministic."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase3.py (new — 19 pytest cases for Phase 3: story sequences, metrics, reports, tasks, capacity, regression)"
+  ],
+  "success_rate": { "backend": "100% (19/19 passed)", "frontend": "100% — all 4 new modules + regression flows verified" },
+  "test_credentials": "admin@vibrae.com / vibrae2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Backend tests left minor residue: 1 TEST_ report (year=2020, month=2) and 1 TEST_ metrics doc (year=2020, month=1) in Aurora's collections. Not visible in default UI since UI filters by current/recent year. Also, sequence status was cycled through approved→reset to aguardando_aprovacao at end of test to preserve demo state. One extra frame (index 4) was appended to the Aurora sequence during Playwright add-frame test — sequence now has 5 frames instead of 4. Non-blocking demo residue.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 3 backend + frontend fully passing. Regression suite: run `pytest /app/backend/tests/test_phase2.py /app/backend/tests/test_phase3.py -v`. All 11 sidebar entries render (nav-dashboard, nav-crm, nav-clients [note: singular 'clients' not 'clientes'], nav-content, nav-stories, nav-calendario, nav-tarefas, nav-ia, nav-artes, nav-relatorios, nav-financeiro). To re-test batch-approve UI, set the Aurora sequence status back to 'aguardando_aprovacao' via PATCH /api/story-sequences/{id}. The 4 capacity assignees observed: Marina Costa (4 tasks, bem_distribuido), Bianca Alves (2, disponivel), João Editor (2, disponivel), Ana Ribeiro (1, disponivel). PNG export downloads work end-to-end despite non-fatal Google Fonts CORS warning.",
+  "rca of the issue": "N/A — no functional bugs found. The two identified integration/design items (html-to-image font CSS CORS warning + Radix DialogDescription warnings) are non-blocking hygiene items with clear one-line fixes documented in action_items."
+}
