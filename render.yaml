@@ -1,0 +1,33 @@
+# Blueprint de deploy do backend VIBRAE OS no Render.
+# No Render: New → Blueprint → aponte para este repositório. Ele lê este arquivo.
+services:
+  - type: web
+    name: vibrae-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DB_NAME
+        value: vibrae_os
+      - key: JWT_SECRET
+        generateValue: true      # o Render gera um segredo forte automaticamente
+      - key: MONGO_URL
+        sync: false              # você cola a string de conexão do MongoDB Atlas
+      # Integrações (opcionais — deixe em branco por enquanto, religamos na Fase C):
+      # - key: STRIPE_SECRET_KEY
+      #   sync: false
+      # - key: STRIPE_WEBHOOK_SECRET
+      #   sync: false
+      # - key: META_APP_ID
+      #   sync: false
+      # - key: META_APP_SECRET
+      #   sync: false
+      # - key: META_REDIRECT_URI
+      #   sync: false
+      # - key: FRONTEND_URL
+      #   sync: false
