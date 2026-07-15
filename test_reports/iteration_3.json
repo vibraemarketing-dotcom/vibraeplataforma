@@ -1,0 +1,31 @@
+{
+  "summary": "Phase 2 comprehensive test: Backend 17/17 passed (1 skipped for missing pending tx), Frontend 100% flows verified. All 4 new modules (IA VIBRAE, Compliance, Financeiro, Calendário) plus Brand Kit + compliance gate work end-to-end. Real Claude Sonnet 4.5 call succeeded (~10s) and returned valid JSON caption. No regressions on Phase 1.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "IA VIBRAE — Brand Kit preview card", "issues": ["Preview shows only when brandKit.tone_of_voice is truthy; on first client-select there is a brief moment where preview flashes empty because clients array loads before brand kit. Non-blocking, but consider showing a placeholder skeleton or 'Carregando Brand Kit…' state on the left panel."] }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase2.py",
+    "/app/test_reports/pytest/phase2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "compliance_rules.py — 6-month financial series in phase2_endpoints.py uses `today.replace(day=1) - timedelta(days=i*30)` which is off-by-a-few-days for months of varying length (Feb, months with 31 days). For a 6-month lookback this can occasionally miscount which month a paid_at belongs to. Consider using dateutil.relativedelta(months=i) to be precise. Non-blocking: seed happens to place `paid_at` at due_date+1 which sits inside each month's range, so no visible bug today.",
+    "phase2_endpoints.py `list_tx` mutates `d['status']` to 'vencido' in Python only (not persisted). Reads work but the DB copy stays 'pendente'. For UI/list this is fine, but the `financial/summary` overdue aggregation only counts docs with `status='vencido'` in Mongo — so newly-overdue pendente rows won't show in the INADIMPLÊNCIA KPI until they are persisted as vencido. Consider a background job or persist-on-read pattern.",
+    "AIStudio.jsx Brand Kit preview: `brandKit && brandKit.tone_of_voice` — good gate, but a small skeleton/loading placeholder would improve perceived responsiveness."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase2.py (new — 18 pytest cases for Phase 2)"
+  ],
+  "success_rate": { "backend": "100% (17 passed / 1 skipped, 0 failed)", "frontend": "100%" },
+  "test_credentials": "admin@vibrae.com / vibrae2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None persisted beyond test — TEST_ prefixed transaction created and left in DB (small residue, safe to ignore). Brand Kit tone_of_voice modified in test then restored to original.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 fully passing. Backend regression suite lives in /app/backend/tests/test_phase2.py — run with `pytest -v tests/test_phase2.py`. IA VIBRAE call takes ~5-10s so allow 60s timeout. Compliance is deterministic regex. Financial MRR=13800 (3 ativos only; Sorriso Vivo is onboarding, Vida Fisio is pausado). Calendar holidays include Jul 27 Nutricionista, Sep 21 Fisioterapia, Oct 3 Dentista. Sending Aurora's Post/Story content with clean text bypasses the compliance dialog (risk=baixo, sent directly). To test bloqueado/alto dialog manually: edit a content caption to include 'garantido' + 'promoção' + 'R$ 199' + 'antes e depois' + 'cura' → dialog will appear with 'Enviar mesmo assim' hidden.",
+  "rca of the issue": "N/A — no bugs found. Prior iteration_2 crash (missing useCallback import in ClientDetail) is fixed and confirmed via successful load and Brand Kit tab render."
+}

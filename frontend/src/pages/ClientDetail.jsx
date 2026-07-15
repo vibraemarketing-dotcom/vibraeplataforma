@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { TID } from "@/constants/testIds";
+import BrandKitEditor from "@/components/BrandKitEditor";
+import CompliancePanel from "@/components/CompliancePanel";
 
 const CONTENT_STATUS = [
   { key: "ideia", label: "Ideia" },
@@ -79,6 +81,7 @@ export default function ClientDetail() {
         <TabsList className="bg-transparent gap-2 p-0">
           <TabsTrigger value="visao" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Visão geral</TabsTrigger>
           <TabsTrigger value="conteudos" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Content Studio</TabsTrigger>
+          <TabsTrigger value="brandkit" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" data-testid="tab-brandkit">Brand Kit</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao" className="mt-6 space-y-4">
@@ -101,6 +104,10 @@ export default function ClientDetail() {
 
         <TabsContent value="conteudos" className="mt-6">
           <ContentStudio contents={contents} clientId={id} onChange={load} newOpen={newOpen} setNewOpen={setNewOpen}/>
+        </TabsContent>
+
+        <TabsContent value="brandkit" className="mt-6">
+          <BrandKitEditor clientId={id}/>
         </TabsContent>
       </Tabs>
     </div>
@@ -155,10 +162,37 @@ const FORMAT_LABEL = { reels: "Reels", story: "Story", carrossel: "Carrossel", p
 
 function ContentCard({ content, onChange }) {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [complianceOpen, setComplianceOpen] = useState(false);
+  const [complianceResult, setComplianceResult] = useState(null);
 
   async function sendApproval() {
-    try { await http.post(`/content/${content.id}/send-approval`); toast.success("Enviado ao cliente"); onChange(); }
-    catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+    // Rodar compliance antes de enviar
+    try {
+      const { data } = await http.post(`/content/${content.id}/compliance-check`);
+      setComplianceResult(data);
+      if (data.risk === "bloqueado") {
+        setComplianceOpen(true);
+        toast.error("Compliance bloqueou o envio. Revise os apontamentos.");
+        return;
+      }
+      if (data.risk === "alto") {
+        setComplianceOpen(true);
+        toast.warning("Alto risco de compliance — revise antes de enviar.");
+        return;
+      }
+      await http.post(`/content/${content.id}/send-approval`);
+      toast.success("Enviado ao cliente");
+      onChange();
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+  }
+
+  async function forceSendApproval() {
+    try {
+      await http.post(`/content/${content.id}/send-approval`);
+      toast.success("Enviado ao cliente");
+      setComplianceOpen(false);
+      onChange();
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   }
   async function setStatus(status) {
     try { await http.patch(`/content/${content.id}`, { status }); toast.success("Status atualizado"); onChange(); }
@@ -198,6 +232,47 @@ function ContentCard({ content, onChange }) {
         </button>
       )}
       <HistoryDialog open={historyOpen} setOpen={setHistoryOpen} content={content}/>
+      <Dialog open={complianceOpen} onOpenChange={setComplianceOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-serif-display text-2xl">Checagem de compliance</DialogTitle>
+          </DialogHeader>
+          {complianceResult && (
+            <div className="space-y-3">
+              <div className={`p-3 rounded-lg text-sm ${complianceResult.risk === "bloqueado" || complianceResult.risk === "alto" ? "" : ""}`}
+                style={{ background: complianceResult.risk === "bloqueado" ? "#FBE9E7" : complianceResult.risk === "alto" ? "#FBE9E7" : "#F5EBD0",
+                         color: complianceResult.risk === "baixo" ? "#806525" : "#9A2A1E" }}>
+                <b>{complianceResult.risk === "bloqueado" ? "Bloqueado — revise antes de enviar" :
+                    complianceResult.risk === "alto" ? "Alto risco — revise cuidadosamente" :
+                    complianceResult.risk === "atencao" ? "Atenção — verifique os apontamentos" : "Baixo risco"}</b>
+                <div className="text-xs mt-1" style={{ color: "#6F6F6C" }}>
+                  {complianceResult.findings.length} apontamento(s) · pontuação {complianceResult.score}
+                  {complianceResult.council && ` · ${complianceResult.council.toUpperCase()}`}
+                </div>
+              </div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {complianceResult.findings.map((f, i) => (
+                  <div key={i} className="p-2.5 rounded-lg border text-xs" style={{ borderColor: "#E2E0DC" }}>
+                    <div className="font-semibold" style={{ color: f.severity === 3 ? "#9A2A1E" : "#806525" }}>
+                      {f.severity === 3 ? "ALTO" : f.severity === 2 ? "ATENÇÃO" : "BAIXO"} · {f.rule}
+                    </div>
+                    <div className="mt-1" style={{ color: "#231F20" }}>&ldquo;{f.snippet}&rdquo;</div>
+                    <div className="mt-1" style={{ color: "#6F6F6C" }}>{f.suggestion}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[10px]" style={{ color: "#959693" }}>{complianceResult.disclaimer}</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setComplianceOpen(false)}>Voltar e revisar</Button>
+            {complianceResult?.risk !== "bloqueado" && (
+              <Button onClick={forceSendApproval} data-testid="compliance-force-send"
+                style={{ background: "#231F20", color: "#fff" }}>Enviar mesmo assim</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

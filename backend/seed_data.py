@@ -7,7 +7,9 @@ def iso(dt=None):
 
 async def run_seed(db, hash_password):
     if await db.users.count_documents({}) > 0:
-        return  # já foi feito seed
+        # Só popula os dados de Fase 2 se ainda não existem
+        await _seed_phase2_if_missing(db)
+        return  # já foi feito seed base
 
     # ---------- Clientes fictícios ----------
     clientes = [
@@ -166,3 +168,167 @@ async def run_seed(db, hash_password):
             "id": str(uuid.uuid4()), "text": a, "kind": "system",
             "user_name": "Sistema", "created_at": iso()
         })
+
+    # Também popula fase 2 no primeiro seed
+    await _seed_phase2_if_missing(db)
+
+
+async def _seed_phase2_if_missing(db):
+    """Popula Brand Kits + Financeiro se ainda não existirem."""
+    from datetime import timedelta
+
+    # Brand Kits
+    if await db.brand_kits.count_documents({}) == 0:
+        clients = await db.clients.find({}, {"_id": 0}).to_list(50)
+        by_name = {c["trade_name"]: c for c in clients}
+
+        brand_kits = [
+            {
+                "trade_name": "Clínica Aurora Estética",
+                "council": "estetica",
+                "council_number": "CRBM-SP 12345",
+                "tone_of_voice": "Elegante, acolhedor, técnico sem ser frio",
+                "audience": "Mulheres 30-55 anos, classe A/B, buscam estética preventiva",
+                "persona": "Camila, 42 anos, executiva, cuida da pele com investimento consciente",
+                "pillars": ["Autoridade técnica", "Bastidores", "Educação estética", "Prova social"],
+                "allowed_words": ["cuidado", "avaliação", "protocolo", "resultado individualizado"],
+                "forbidden_words": ["milagre", "garantido", "melhor do Brasil", "rejuvenescedor mágico"],
+                "ctas": ["Agende sua avaliação", "Conheça nosso protocolo", "Fale com nosso time"],
+                "hashtags": "#skincare #estetica #biomedicina #cuidadofacial",
+                "color_primary": "#B79A6A", "color_secondary": "#231F20",
+                "archetype": "Cuidadora",
+            },
+            {
+                "trade_name": "Dr. Rafael Nunes — Ortopedia",
+                "council": "cfm", "council_number": "CRM-MG 45678 · RQE 12345",
+                "tone_of_voice": "Direto, científico, tranquilizador",
+                "audience": "Homens e mulheres 25-60 anos, ativos, com dores articulares ou lesões",
+                "persona": "Corredor amador com dor no joelho — quer voltar a treinar sem cirurgia desnecessária",
+                "pillars": ["Autoridade médica", "Educação", "Prevenção", "Casos anonimizados"],
+                "allowed_words": ["avaliação", "diagnóstico", "tratamento individualizado", "evidência científica"],
+                "forbidden_words": ["cura garantida", "sem dor imediata", "resultado 100%"],
+                "ctas": ["Agende sua consulta", "Conheça o tratamento"],
+                "hashtags": "#ortopedia #corrida #joelho #medicinaesportiva",
+                "color_primary": "#1F3B5B", "color_secondary": "#F5F5F5",
+                "archetype": "Sábio",
+            },
+            {
+                "trade_name": "Sorriso Vivo Odontologia",
+                "council": "cro", "council_number": "CRO-PR 98765",
+                "tone_of_voice": "Suave, humano, moderno",
+                "audience": "Mulheres 25-50 anos que investem em autoestima",
+                "persona": "Marina, 34, quer harmonização facial discreta e natural",
+                "pillars": ["Educação em HOF", "Bastidores da clínica", "Depoimentos autorizados", "Ciência estética"],
+                "allowed_words": ["harmonização", "naturalidade", "avaliação personalizada"],
+                "forbidden_words": ["antes e depois sem autorização", "preço", "promoção"],
+                "ctas": ["Agende sua avaliação", "Conheça a clínica"],
+                "hashtags": "#odontologia #hof #harmonizacaofacial",
+                "color_primary": "#C7A876", "color_secondary": "#231F20",
+                "archetype": "Amante da beleza",
+            },
+            {
+                "trade_name": "Nutri Marina Prado",
+                "council": "crn", "council_number": "CRN-8 54321",
+                "tone_of_voice": "Leve, motivador, educativo",
+                "audience": "Mulheres 25-45 anos, buscam emagrecimento saudável e sustentável",
+                "persona": "Beatriz, 32, mãe, cansada de dietas restritivas",
+                "pillars": ["Nutrição funcional", "Receitas", "Educação alimentar", "Mitos e verdades"],
+                "allowed_words": ["equilíbrio", "sustentável", "individualizado", "estilo de vida"],
+                "forbidden_words": ["dieta milagrosa", "emagreça em 7 dias", "detox miraculoso"],
+                "ctas": ["Agende sua consulta", "Comece hoje"],
+                "hashtags": "#nutricao #emagrecimentosaudavel",
+                "color_primary": "#7A8C5B", "color_secondary": "#231F20",
+                "archetype": "Guia",
+            },
+        ]
+        for bk in brand_kits:
+            client = by_name.get(bk["trade_name"])
+            if not client: continue
+            bk["client_id"] = client["id"]
+            bk["updated_at"] = iso()
+            await db.brand_kits.insert_one(bk)
+
+    # Financeiro
+    if await db.financial_transactions.count_documents({}) == 0:
+        clients = await db.clients.find({"status": {"$in": ["ativo", "onboarding"]}}, {"_id": 0}).to_list(50)
+        today = datetime.now(timezone.utc)
+        # Receitas: 3 meses de histórico de mensalidades + próximas
+        for c in clients:
+            for offset in [-2, -1, 0, 1]:
+                due = (today.replace(day=10) + timedelta(days=offset * 30))
+                tx = {
+                    "id": str(uuid.uuid4()),
+                    "client_id": c["id"],
+                    "type": "receita",
+                    "category": "Mensalidade",
+                    "description": f"Mensalidade — {c['trade_name']}",
+                    "amount": c.get("monthly_fee", 0),
+                    "due_date": due.date().isoformat(),
+                    "payment_method": "PIX",
+                    "recurring": True,
+                    "notes": "",
+                    "created_at": iso(),
+                    "updated_at": iso(),
+                }
+                if offset < 0:  # pagas
+                    tx["status"] = "pago"
+                    tx["paid_at"] = (due + timedelta(days=2)).isoformat()
+                elif offset == 0:  # este mês pendente (ou vencida se dia 10 já passou)
+                    tx["status"] = "pendente" if today.day <= 10 else "vencido"
+                    tx["paid_at"] = None
+                else:  # futuras
+                    tx["status"] = "previsto"
+                    tx["paid_at"] = None
+                await db.financial_transactions.insert_one(tx)
+
+        # Uma inadimplência clara
+        overdue_client = clients[0] if clients else None
+        if overdue_client:
+            await db.financial_transactions.insert_one({
+                "id": str(uuid.uuid4()),
+                "client_id": overdue_client["id"],
+                "type": "receita",
+                "category": "Serviço avulso",
+                "description": "Cobertura de evento — cliente inadimplente",
+                "amount": 1800,
+                "due_date": (today - timedelta(days=15)).date().isoformat(),
+                "status": "vencido", "payment_method": "Boleto",
+                "recurring": False, "notes": "Aguarda regularização",
+                "created_at": iso(), "updated_at": iso(), "paid_at": None,
+            })
+
+        # Despesas fixas do mês
+        despesas = [
+            ("Equipe interna — salários", 18500, "Equipe"),
+            ("Freelancer videomaker", 3200, "Freelancers"),
+            ("Meta Ads (verba da agência)", 1500, "Anúncios"),
+            ("Assinatura de ferramentas (design/edição)", 890, "Ferramentas"),
+            ("Contabilidade e impostos", 2400, "Impostos"),
+        ]
+        for desc, amount, cat in despesas:
+            due = today.replace(day=5)
+            await db.financial_transactions.insert_one({
+                "id": str(uuid.uuid4()),
+                "client_id": None,
+                "type": "despesa", "category": cat, "description": desc,
+                "amount": amount, "due_date": due.date().isoformat(),
+                "status": "pago", "payment_method": "Débito automático",
+                "recurring": True, "notes": "",
+                "created_at": iso(), "updated_at": iso(),
+                "paid_at": (due + timedelta(days=1)).isoformat(),
+            })
+
+        # Despesas variáveis: mês anterior também
+        for offset in [-2, -1]:
+            for desc, amount, cat in despesas[:3]:
+                due = today.replace(day=5) + timedelta(days=offset * 30)
+                await db.financial_transactions.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "client_id": None,
+                    "type": "despesa", "category": cat, "description": desc,
+                    "amount": amount, "due_date": due.date().isoformat(),
+                    "status": "pago", "payment_method": "Débito automático",
+                    "recurring": True, "notes": "",
+                    "created_at": iso(), "updated_at": iso(),
+                    "paid_at": (due + timedelta(days=1)).isoformat(),
+                })

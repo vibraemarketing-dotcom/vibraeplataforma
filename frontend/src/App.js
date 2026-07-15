@@ -9,6 +9,9 @@ import CRM from "@/pages/CRM";
 import Clients from "@/pages/Clients";
 import ClientDetail from "@/pages/ClientDetail";
 import ClientPortal from "@/pages/ClientPortal";
+import AIStudio from "@/pages/AIStudio";
+import Financeiro from "@/pages/Financeiro";
+import Calendario from "@/pages/Calendario";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -33,6 +36,9 @@ function App() {
             <Route path="clientes" element={<Clients />} />
             <Route path="clientes/:id" element={<ClientDetail />} />
             <Route path="conteudos" element={<Clients />} />
+            <Route path="ia" element={<AIStudio />} />
+            <Route path="financeiro" element={<Financeiro />} />
+            <Route path="calendario" element={<Calendario />} />
           </Route>
 
           <Route path="/portal" element={<AppLayout requiredArea="client" />}>

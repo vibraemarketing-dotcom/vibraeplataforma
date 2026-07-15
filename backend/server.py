@@ -472,6 +472,11 @@ async def root():
     return {"service": "VIBRAE OS", "status": "ok"}
 
 app.include_router(api)
+
+# Phase 2 modules
+from phase2_endpoints import build_phase2_router
+app.include_router(build_phase2_router(db, get_current_user))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -487,6 +492,8 @@ async def on_startup():
     await db.leads.create_index("id", unique=True)
     await db.clients.create_index("id", unique=True)
     await db.content.create_index("id", unique=True)
+    await db.brand_kits.create_index("client_id", unique=True)
+    await db.financial_transactions.create_index("id", unique=True)
     await seed()
 
 async def seed():
