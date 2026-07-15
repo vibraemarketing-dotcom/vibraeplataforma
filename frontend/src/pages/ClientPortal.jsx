@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { http, formatApiError } from "@/lib/api";
 import { Check, RotateCcw, Send, Instagram, Calendar, Sparkles, ClipboardCheck } from "lucide-react";
@@ -14,12 +14,12 @@ export default function ClientPortal() {
   const [summary, setSummary] = useState(null);
   const [awaiting, setAwaiting] = useState([]);
 
-  async function load() {
+  const load = useCallback(async () => {
     const [s, c] = await Promise.all([http.get("/portal/summary"), http.get("/content")]);
     setSummary(s.data);
     setAwaiting(c.data.filter(x => x.status === "aguardando_aprovacao" || x.status === "ajuste_solicitado"));
-  }
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   if (!summary) return <div className="text-sm" style={{ color: "#6F6F6C" }}>Carregando portal…</div>;
 

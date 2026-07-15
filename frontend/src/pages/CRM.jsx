@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { http, waLink, currency, formatApiError } from "@/lib/api";
 import { TID } from "@/constants/testIds";
 import { Plus, MessageCircle, ArrowRight, MoreHorizontal } from "lucide-react";
@@ -27,11 +27,11 @@ export default function CRM() {
   const [newOpen, setNewOpen] = useState(false);
   const navigate = useNavigate();
 
-  async function load() {
+  const load = useCallback(async () => {
     const { data } = await http.get("/leads");
     setLeads(data);
-  }
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   async function moveTo(lead, stage) {
     try {

@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 2 regression pass after useCallback + stable-key + logout-logging refactor. Found and fixed one blocking regression: `useCallback` was USED but NOT IMPORTED in ClientDetail.jsx (line 1 imports only useEffect/useMemo/useState) — would have crashed the client detail page with ReferenceError at runtime. After the one-line import fix, ALL 10 flows in the request pass with zero React errors and zero React unique-key warnings in console.",
+  "tested_scope": ["frontend", "auth", "integration"],
+  "passed": [
+    "Admin login (admin@vibrae.com / vibrae2026) -> /app/dashboard",
+    "Dashboard KPIs render correct values: active=3, mrr=R$ 13.800,00, leads=7, awaiting=2",
+    "Session persistence: reload /app/dashboard while logged in -> still authenticated (vibrae_token in localStorage)",
+    "CRM page /app/crm loads with 7 leads across 8 Kanban columns",
+    "Clients page /app/clientes renders 5 client cards; click navigates to /app/clientes/:id",
+    "Client detail loads with Visão geral + Content Studio tabs; Content Studio Kanban visible with contents grouped",
+    "History dialog opens via content dropdown -> 'Ver histórico'; 2 entries rendered (v2 adjustment, v1 created); ZERO React unique-key warnings — confirms composite key `${h.version}-${h.timestamp}-${h.action}` works",
+    "Client portal login (cliente@drrafael.com) redirects to /portal, portal-page renders",
+    "Portal approve flow: window.confirm accepted via page.on('dialog', ...), POST /content/{id}/approval-action, card removed from awaiting list (status -> aprovado)",
+    "Portal adjust flow persistence verified via history: v2 · adjustment entry with previous comment ('Trocar imagem de capa e revisar CTA final.') is preserved alongside v1 · created — proving new version + history preservation works",
+    "Logout returns to /login; localStorage vibrae_token cleared; the logout catch that now logs via console.warn produced no errors during a normal logout path"
+  ],
+  "failed": [],
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "History dialog & Adjust dialog", "issues": ["Radix warning: 'Missing Description or aria-describedby={undefined} for DialogContent' — pre-existing accessibility warning, non-blocking, not caused by this refactor. Consider adding <DialogDescription> to both dialogs."] }
+    ]
+  },
+  "critical_code_review_comments": [
+    "BLOCKING REGRESSION FOUND & FIXED by test agent: /app/frontend/src/pages/ClientDetail.jsx line 1 imported {useEffect, useMemo, useState} but the refactored `load` on line 35 uses `useCallback` — this would cause `ReferenceError: useCallback is not defined` and crash the client-detail route as soon as a user navigates to /app/clientes/:id. Fixed the import to include useCallback so testing could proceed.",
+    "ClientDetail.jsx still emits ESLint warning: `Line 42:32: React Hook useEffect has a missing dependency: 'load'`. This is a false positive — `load` IS wrapped in useCallback([id]) — but ESLint occasionally fails to recognize memoized values as stable when the callback is defined inline. Consider disabling the rule for that line or restructuring, but this is non-blocking (webpack still compiles successfully).",
+    "CRM.jsx and ClientPortal.jsx useCallback refactors look correct (both import useCallback). Only ClientDetail.jsx was missed."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Verify the useCallback import fix in ClientDetail.jsx (already applied by test agent) is retained in your next commit.",
+    "Consider silencing or restructuring the false-positive react-hooks/exhaustive-deps warning on ClientDetail.jsx:42.",
+    "Optional a11y polish: add <DialogDescription> to HistoryDialog / AdjustDialog / NewLeadDialog / NewContentDialog to remove Radix warnings."
+  ],
+  "updated_files": ["/app/frontend/src/pages/ClientDetail.jsx (added useCallback to react imports)"],
+  "success_rate": { "backend": "not_tested", "frontend": "100% (after 1 fix)" },
+  "seed_data_creation": "No seed data created. Note: prior test iteration approved 1 Dr. Rafael content and requested 1 adjust — the approved content is now aprovado and the v2 adjustment is now visible in HistoryDialog. Any next iteration retesting portal approve/adjust may need to re-seed Dr. Rafael's content back to aguardando_aprovacao (or use Aurora client) since only 1 awaiting card remained per client at start.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Phase 1 flows verified end-to-end. Only fix required during this iteration was adding `useCallback` to the react import in ClientDetail.jsx. History dialog composite key works — no React unique-key warnings. Portal approve/adjust integration confirmed. Session persistence via localStorage.vibrae_token works. Logout clean.",
+  "rca of the issue": "Root cause of the regression: when refactoring load() to be wrapped in useCallback, the developer added `useCallback` at the call site in ClientDetail.jsx line 35 but forgot to add it to the react named-import list on line 1. React was still tree-shaken to include useEffect/useMemo/useState only, so the reference was undefined. Because ClientDetail is only rendered on the /app/clientes/:id route, `yarn start` compiled cleanly (only an unrelated exhaustive-deps warning surfaced) and the earlier smoke tests that stopped at the clients list didn't hit the crash. Mitigation applied: added useCallback to the import. Prevention: enable eslint no-undef with react preset, or run a Playwright smoke on /app/clientes/:id in CI."
+}

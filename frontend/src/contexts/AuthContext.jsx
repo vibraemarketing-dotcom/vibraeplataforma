@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { http, formatApiError } from "@/lib/api";
 
 const AuthCtx = createContext(null);
@@ -8,19 +8,21 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const t = localStorage.getItem("vibrae_token");
-        if (!t) { setUser(false); return; }
+        const token = localStorage.getItem("vibrae_token");
+        if (!token) { if (!cancelled) setUser(false); return; }
         const { data } = await http.get("/auth/me");
-        setUser(data);
-      } catch {
-        setUser(false);
+        if (!cancelled) setUser(data);
+      } catch (e) {
+        if (!cancelled) setUser(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
-  async function login(email, password) {
+  const login = useCallback(async (email, password) => {
     setError("");
     try {
       const { data } = await http.post("/auth/login", { email, password });
@@ -32,13 +34,17 @@ export function AuthProvider({ children }) {
       setError(msg);
       throw new Error(msg);
     }
-  }
+  }, []);
 
-  async function logout() {
-    try { await http.post("/auth/logout"); } catch {}
+  const logout = useCallback(async () => {
+    try {
+      await http.post("/auth/logout");
+    } catch (e) {
+      console.warn("Logout endpoint falhou (não crítico):", e?.message);
+    }
     localStorage.removeItem("vibrae_token");
     setUser(false);
-  }
+  }, []);
 
   return (
     <AuthCtx.Provider value={{ user, login, logout, error }}>

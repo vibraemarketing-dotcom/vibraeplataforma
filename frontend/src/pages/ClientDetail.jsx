@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { http, currency, waLink, formatApiError } from "@/lib/api";
 import { ArrowLeft, MessageCircle, Plus, MoreHorizontal, Send, Check, RotateCcw, History } from "lucide-react";
@@ -32,14 +32,14 @@ export default function ClientDetail() {
   const [contents, setContents] = useState([]);
   const [newOpen, setNewOpen] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const [c, ct] = await Promise.all([
       http.get(`/clients/${id}`),
       http.get(`/content`, { params: { client_id: id }})
     ]);
     setClient(c.data); setContents(ct.data);
-  }
-  useEffect(() => { load(); }, [id]);
+  }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   if (!client) return <div className="text-sm" style={{ color: "#6F6F6C" }}>Carregando cliente…</div>;
 
@@ -210,8 +210,8 @@ function HistoryDialog({ open, setOpen, content }) {
           <DialogTitle className="font-serif-display text-2xl">Histórico · {content.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 max-h-[400px] overflow-y-auto">
-          {(content.history || []).slice().reverse().map((h, i) => (
-            <div key={i} className="p-3 rounded-lg border" style={{ borderColor: "#EFECE7" }}>
+          {(content.history || []).slice().reverse().map((h) => (
+            <div key={`${h.version}-${h.timestamp}-${h.action}`} className="p-3 rounded-lg border" style={{ borderColor: "#EFECE7" }}>
               <div className="flex items-center justify-between">
                 <div className="text-xs font-semibold" style={{ color: "#A18133" }}>v{h.version} · {h.action}</div>
                 <div className="text-[10px]" style={{ color: "#959693" }}>{new Date(h.timestamp).toLocaleString("pt-BR")}</div>
