@@ -16,6 +16,12 @@ import ArtEditor from "@/pages/ArtEditor";
 import StoriesStudio from "@/pages/StoriesStudio";
 import Relatorios from "@/pages/Relatorios";
 import Tarefas from "@/pages/Tarefas";
+import Integrations from "@/pages/Integrations";
+import Reunioes from "@/pages/Reunioes";
+import Propostas from "@/pages/Propostas";
+import PublicProposal from "@/pages/PublicProposal";
+import Agencia from "@/pages/Agencia";
+import AgencySignup, { PaymentSuccess } from "@/pages/AgencySignup";
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -47,7 +53,17 @@ function App() {
             <Route path="stories" element={<StoriesStudio />} />
             <Route path="relatorios" element={<Relatorios />} />
             <Route path="tarefas" element={<Tarefas />} />
+            <Route path="reunioes" element={<Reunioes />} />
+            <Route path="propostas" element={<Propostas />} />
+            <Route path="integracoes" element={<Integrations />} />
+            <Route path="agencia" element={<Agencia />} />
           </Route>
+
+          {/* Rotas públicas */}
+          <Route path="/aceite/:token" element={<PublicProposal />} />
+          <Route path="/cadastro-agencia" element={<AgencySignup />} />
+          <Route path="/agencia/pagamento/sucesso" element={<PaymentSuccess />} />
+          <Route path="/agencia/pagamento/cancelar" element={<AgencySignup />} />
 
           <Route path="/portal" element={<AppLayout requiredArea="client" />}>
             <Route index element={<ClientPortal />} />

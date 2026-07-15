@@ -481,6 +481,10 @@ app.include_router(build_phase2_router(db, get_current_user))
 from phase3_endpoints import build_phase3_router
 app.include_router(build_phase3_router(db, get_current_user))
 
+# Phase 4 modules
+from phase4_endpoints import build_phase4_router
+app.include_router(build_phase4_router(db, get_current_user))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

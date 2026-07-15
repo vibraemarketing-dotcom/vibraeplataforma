@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Target, Users, LayoutGrid, LogOut, Home, ChevronsLeft, ChevronsRight, Sparkles, Wallet, CalendarDays, Palette, Zap, BarChart3, ListChecks } from "lucide-react";
+import { LayoutDashboard, Target, Users, LayoutGrid, LogOut, Home, ChevronsLeft, ChevronsRight, Sparkles, Wallet, CalendarDays, Palette, Zap, BarChart3, ListChecks, Plug, Mic, FileText, Building } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import VibraeLogo from "@/components/VibraeLogo";
@@ -8,15 +8,19 @@ import { TID } from "@/constants/testIds";
 const AGENCY_NAV = [
   { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: TID.navDashboard },
   { to: "/app/crm", label: "CRM Comercial", icon: Target, testId: TID.navCrm },
+  { to: "/app/propostas", label: "Propostas", icon: FileText, testId: "nav-propostas" },
   { to: "/app/clientes", label: "Clientes", icon: Users, testId: TID.navClients },
   { to: "/app/conteudos", label: "Content Studio", icon: LayoutGrid, testId: TID.navContent },
   { to: "/app/stories", label: "Stories", icon: Zap, testId: "nav-stories" },
   { to: "/app/calendario", label: "Calendário", icon: CalendarDays, testId: "nav-calendario" },
   { to: "/app/tarefas", label: "Tarefas · Gantt", icon: ListChecks, testId: "nav-tarefas" },
+  { to: "/app/reunioes", label: "Reuniões · Ata", icon: Mic, testId: "nav-reunioes" },
   { to: "/app/ia", label: "IA VIBRAE", icon: Sparkles, testId: "nav-ia" },
   { to: "/app/artes", label: "Gerador de Artes", icon: Palette, testId: "nav-artes" },
   { to: "/app/relatorios", label: "Relatórios", icon: BarChart3, testId: "nav-relatorios" },
   { to: "/app/financeiro", label: "Financeiro", icon: Wallet, testId: "nav-financeiro" },
+  { to: "/app/integracoes", label: "Integrações", icon: Plug, testId: "nav-integracoes" },
+  { to: "/app/agencia", label: "Minha Agência", icon: Building, testId: "nav-agencia" },
 ];
 
 const CLIENT_NAV = [
