@@ -12,15 +12,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
-export default function Relatorios() {
+export default function Relatorios({ embedClientId }) {
   const [clients, setClients] = useState([]);
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(embedClientId || "");
   const [reports, setReports] = useState([]);
   const [metrics, setMetrics] = useState([]);
   const [openReport, setOpenReport] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
-  useEffect(() => { http.get("/clients").then(r => { setClients(r.data); if (r.data[0]) setClientId(r.data[0].id); }); }, []);
+  useEffect(() => { http.get("/clients").then(r => { setClients(r.data); if (!embedClientId && r.data[0]) setClientId(r.data[0].id); }); }, [embedClientId]);
 
   const load = useCallback(async () => {
     if (!clientId) return;
@@ -49,19 +49,23 @@ export default function Relatorios() {
     <div className="space-y-6" data-testid="relatorios-page">
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>RELATÓRIOS DE INSTAGRAM</div>
-          <h1 className="font-serif-display text-4xl mt-1" style={{ color: "#231F20" }}>Performance & Estratégia</h1>
-          <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
-            Métricas mensais, destaques, aprendizados e próximos passos — prontos para apresentar ao cliente.
-          </p>
+          {!embedClientId && <>
+            <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>RELATÓRIOS DE INSTAGRAM</div>
+            <h1 className="font-serif-display text-4xl mt-1" style={{ color: "#231F20" }}>Performance & Estratégia</h1>
+            <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
+              Métricas mensais, destaques, aprendizados e próximos passos — prontos para apresentar ao cliente.
+            </p>
+          </>}
         </div>
         <div className="flex gap-2 items-center">
-          <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger data-testid="rep-client-select" className="w-56"><SelectValue/></SelectTrigger>
-            <SelectContent>
-              {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.trade_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {!embedClientId && (
+            <Select value={clientId} onValueChange={setClientId}>
+              <SelectTrigger data-testid="rep-client-select" className="w-56"><SelectValue/></SelectTrigger>
+              <SelectContent>
+                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.trade_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Button onClick={() => setEditorOpen(true)} data-testid="new-report-btn" style={{ background: "#A18133", color: "#fff" }}>
             <Plus size={16} className="mr-1"/> Novo relatório
           </Button>

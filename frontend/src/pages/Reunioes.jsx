@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { Plus, Upload, Mic, FileAudio, ListChecks, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
 
-export default function Reunioes() {
+export default function Reunioes({ embedClientId }) {
   const [meetings, setMeetings] = useState([]);
   const [clients, setClients] = useState([]);
   const [newOpen, setNewOpen] = useState(false);
@@ -22,21 +22,24 @@ export default function Reunioes() {
   useEffect(() => { load(); }, [load]);
 
   const clientById = Object.fromEntries(clients.map(c => [c.id, c.trade_name]));
+  const shownMeetings = embedClientId ? meetings.filter(m => m.client_id === embedClientId) : meetings;
 
   return (
     <div className="space-y-6" data-testid="reunioes-page">
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>REUNIÕES COM ATA</div>
-          <h1 className="font-serif-display text-4xl mt-1" style={{ color: "#231F20" }}>Da reunião à tarefa em minutos</h1>
-          <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
-            Suba o áudio da reunião · Whisper transcreve · IA extrai decisões · tudo vira tarefa atribuída ao time.
-          </p>
+          {!embedClientId && <>
+            <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>REUNIÕES COM ATA</div>
+            <h1 className="font-serif-display text-4xl mt-1" style={{ color: "#231F20" }}>Da reunião à tarefa em minutos</h1>
+            <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
+              Suba o áudio da reunião · Whisper transcreve · IA extrai decisões · tudo vira tarefa atribuída ao time.
+            </p>
+          </>}
         </div>
         <NewMeetingDialog open={newOpen} setOpen={setNewOpen} clients={clients} onCreated={load}/>
       </header>
 
-      {meetings.length === 0 && (
+      {shownMeetings.length === 0 && (
         <div className="card-elev p-12 text-center">
           <Mic size={40} className="mx-auto" style={{ color: "#A18133" }}/>
           <div className="text-sm mt-3" style={{ color: "#6F6F6C" }}>Nenhuma reunião cadastrada. Clique em <b>Nova reunião</b>.</div>
@@ -44,7 +47,7 @@ export default function Reunioes() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {meetings.map(m => (
+        {shownMeetings.map(m => (
           <button key={m.id} onClick={() => setSelected(m)} data-testid={`meeting-${m.id}`}
             className="card-elev p-5 text-left hover:shadow-md transition">
             <div className="flex items-center justify-between">

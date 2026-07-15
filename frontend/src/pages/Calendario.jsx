@@ -22,7 +22,7 @@ const STATUS_COLOR = {
 
 const FORMAT_ICON = { reels: "🎬", story: "⚡", carrossel: "📄", post: "🖼️" };
 
-export default function Calendario() {
+export default function Calendario({ embedClientId }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -62,12 +62,13 @@ export default function Calendario() {
   const eventsByDay = useMemo(() => {
     const map = {};
     events.forEach(e => {
+      if (embedClientId && e.client_id !== embedClientId) return;
       const day = parseInt(e.date.split("-")[2], 10);
       map[day] = map[day] || [];
       map[day].push(e);
     });
     return map;
-  }, [events]);
+  }, [events, embedClientId]);
 
   const holidaysByDay = useMemo(() => {
     const map = {};
@@ -94,11 +95,13 @@ export default function Calendario() {
     <div className="space-y-6" data-testid="calendario-page">
       <header className="flex items-end justify-between">
         <div>
-          <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>CALENDÁRIO EDITORIAL</div>
+          {!embedClientId && <div className="text-xs tracking-[0.28em]" style={{ color: "#A18133" }}>CALENDÁRIO EDITORIAL</div>}
           <h1 className="font-serif-display text-4xl mt-1" style={{ color: "#231F20" }}>{MONTHS[month-1]} <span style={{ color: "#A18133" }}>{year}</span></h1>
-          <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
-            {events.length} publicação(ões) · {conflicts.length} conflito(s) · {holidays.length} data(s) comemorativa(s). Arraste os cards para reagendar.
-          </p>
+          {!embedClientId && (
+            <p className="text-sm mt-2" style={{ color: "#6F6F6C" }}>
+              {events.length} publicação(ões) · {conflicts.length} conflito(s) · {holidays.length} data(s) comemorativa(s). Arraste os cards para reagendar.
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={prev} data-testid="cal-prev"><ChevronLeft size={16}/></Button>

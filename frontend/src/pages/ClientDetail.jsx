@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import { TID } from "@/constants/testIds";
 import BrandKitEditor from "@/components/BrandKitEditor";
 import CompliancePanel from "@/components/CompliancePanel";
+import Calendario from "@/pages/Calendario";
+import StoriesStudio from "@/pages/StoriesStudio";
+import Relatorios from "@/pages/Relatorios";
+import Reunioes from "@/pages/Reunioes";
 
 const CONTENT_STATUS = [
   { key: "ideia", label: "Ideia" },
@@ -78,10 +82,15 @@ export default function ClientDetail() {
       </div>
 
       <Tabs defaultValue="conteudos">
-        <TabsList className="bg-transparent gap-2 p-0">
+        <TabsList className="bg-transparent gap-2 p-0 flex-wrap h-auto justify-start">
           <TabsTrigger value="visao" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Visão geral</TabsTrigger>
           <TabsTrigger value="conteudos" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Content Studio</TabsTrigger>
           <TabsTrigger value="brandkit" className="data-[state=active]:bg-white data-[state=active]:shadow-sm" data-testid="tab-brandkit">Brand Kit</TabsTrigger>
+          <TabsTrigger value="calendario" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Calendário</TabsTrigger>
+          <TabsTrigger value="stories" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Stories</TabsTrigger>
+          <TabsTrigger value="relatorios" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Relatórios</TabsTrigger>
+          <TabsTrigger value="reunioes" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Reuniões</TabsTrigger>
+          <TabsTrigger value="compliance" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Compliance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao" className="mt-6 space-y-4">
@@ -94,10 +103,12 @@ export default function ClientDetail() {
             <Info label="Onboarding" value={`${client.onboarding_progress || 0}%`}/>
           </div>
           <div className="card-elev p-6">
-            <div className="text-xs tracking-[0.24em] mb-3" style={{ color: "#6F6F6C" }}>PRÓXIMOS MÓDULOS (FASE 2)</div>
-            <div className="text-sm" style={{ color: "#6F6F6C" }}>
-              Brand Kit · Briefing completo · Estratégia · Calendário editorial · Stories · Roteiros ·
-              Captações · Aprovações em lote · Arquivos · Relatórios · Financeiro · Reuniões · Acessos · Compliance.
+            <div className="text-xs tracking-[0.24em] mb-3" style={{ color: "#6F6F6C" }}>MÓDULOS DESTE CLIENTE</div>
+            <div className="text-sm mb-3" style={{ color: "#231F20" }}>
+              Disponíveis nas abas acima: <b>Content Studio · Brand Kit · Calendário · Stories · Relatórios · Reuniões · Compliance</b>.
+            </div>
+            <div className="text-xs" style={{ color: "#959693" }}>
+              Em construção: Briefing completo · Estratégia · Roteiros · Captações · Arquivos · Financeiro por cliente · Acessos.
             </div>
           </div>
         </TabsContent>
@@ -109,6 +120,26 @@ export default function ClientDetail() {
         <TabsContent value="brandkit" className="mt-6">
           <BrandKitEditor clientId={id}/>
         </TabsContent>
+
+        <TabsContent value="calendario" className="mt-6">
+          <Calendario embedClientId={id}/>
+        </TabsContent>
+
+        <TabsContent value="stories" className="mt-6">
+          <StoriesStudio embedClientId={id}/>
+        </TabsContent>
+
+        <TabsContent value="relatorios" className="mt-6">
+          <Relatorios embedClientId={id}/>
+        </TabsContent>
+
+        <TabsContent value="reunioes" className="mt-6">
+          <Reunioes embedClientId={id}/>
+        </TabsContent>
+
+        <TabsContent value="compliance" className="mt-6">
+          <ComplianceTab clientId={id}/>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -119,6 +150,24 @@ function Info({ label, value }) {
     <div className="card-elev p-4">
       <div className="text-[10px] tracking-wider" style={{ color: "#959693" }}>{label.toUpperCase()}</div>
       <div className="text-sm mt-1 font-medium" style={{ color: "#231F20" }}>{value}</div>
+    </div>
+  );
+}
+
+function ComplianceTab({ clientId }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="card-elev p-6 space-y-4 max-w-2xl">
+      <div>
+        <div className="text-xs tracking-[0.24em] mb-1" style={{ color: "#A18133" }}>COMPLIANCE</div>
+        <h2 className="font-serif-display text-2xl" style={{ color: "#231F20" }}>Checagem de conteúdo</h2>
+        <p className="text-sm mt-1" style={{ color: "#6F6F6C" }}>
+          Cole um texto (legenda, roteiro, story) e rode a checagem contra as normas do conselho do cliente e as regras de publicidade em saúde.
+        </p>
+      </div>
+      <Textarea rows={6} value={text} onChange={e => setText(e.target.value)}
+        placeholder="Cole aqui o texto a ser analisado…"/>
+      <CompliancePanel text={text} clientId={clientId}/>
     </div>
   );
 }
