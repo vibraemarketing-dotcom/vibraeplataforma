@@ -180,12 +180,15 @@ def build_phase2_router(db, get_current_user):
         mrr_res = await db.clients.aggregate(mrr_agg).to_list(1)
         mrr = mrr_res[0]["total"] if mrr_res else 0
 
-        # série últimos 6 meses (receita paga)
+        # série últimos 6 meses (receita paga) — navegação por mês-calendário real,
+        # sem aproximar "1 mês = 30 dias" (o que pulava/duplicava meses de 31 dias).
         series = []
+        base_index = today.year * 12 + (today.month - 1)  # índice absoluto do mês atual
         for i in range(5, -1, -1):
-            m_start = (today.replace(day=1) - timedelta(days=i * 30))
-            m_start = m_start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            m_end = (m_start + timedelta(days=32)).replace(day=1)
+            y, mo0 = divmod(base_index - i, 12)
+            mo = mo0 + 1
+            m_start = datetime(y, mo, 1, tzinfo=timezone.utc)
+            m_end = datetime(y + 1, 1, 1, tzinfo=timezone.utc) if mo == 12 else datetime(y, mo + 1, 1, tzinfo=timezone.utc)
             pipe = [
                 {"$match": {"type": "receita", "status": "pago",
                             "paid_at": {"$gte": m_start.isoformat(), "$lt": m_end.isoformat()}}},
@@ -213,8 +216,10 @@ def build_phase2_router(db, get_current_user):
                      client_id: Optional[str] = None, user: dict = Depends(get_current_user)):
         if user["role"].startswith("client"):
             raise HTTPException(403)
+        # O filtro de status é aplicado DEPOIS da reclassificação de vencidos, senão
+        # pedir status="vencido" não traria os pendentes que já venceram (e "pendente"
+        # traria itens que na prática já estão vencidos).
         q = {}
-        if status: q["status"] = status
         if type: q["type"] = type
         if client_id: q["client_id"] = client_id
         docs = await db.financial_transactions.find(q, {"_id": 0}).sort("due_date", 1).to_list(500)
@@ -223,6 +228,8 @@ def build_phase2_router(db, get_current_user):
         for d in docs:
             if d.get("status") == "pendente" and d.get("due_date", "9999")[:10] < today:
                 d["status"] = "vencido"
+        if status:
+            docs = [d for d in docs if d.get("status") == status]
         return docs
 
     @router.post("/financial/transactions")
