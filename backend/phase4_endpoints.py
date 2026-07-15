@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 import httpx
 import stripe
@@ -141,6 +141,66 @@ def build_phase4_router(db, get_current_user):
         url = (f"https://www.facebook.com/v19.0/dialog/oauth?client_id={app_id}"
                f"&redirect_uri={redirect}&state={state}&scope={scopes}&response_type=code")
         return {"configured": True, "url": url}
+
+    @router.get("/meta/callback")
+    async def meta_callback(code: str = "", state: str = "", error: str = ""):
+        """Retorno do OAuth do Meta: troca o `code` por um token de LONGA duração,
+        descobre a conta do Instagram Business e salva a conexão. No fim, redireciona
+        de volta para a tela de Integrações do frontend.
+
+        Requer no .env: META_APP_ID, META_APP_SECRET, META_REDIRECT_URI (= a URL deste
+        endpoint) e, opcionalmente, FRONTEND_URL para o redirect final.
+        """
+        frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+
+        def _redirect(status: str):
+            if frontend:
+                return RedirectResponse(f"{frontend}/app/integracoes?meta={status}", status_code=302)
+            return HTMLResponse(f"<h3>Meta: {status}</h3><p>Você já pode fechar esta aba.</p>")
+
+        if error or not code or not state or ":" not in state:
+            return _redirect("erro")
+        client_id = state.split(":", 1)[0]
+        app_id = os.environ.get("META_APP_ID", "")
+        app_secret = os.environ.get("META_APP_SECRET", "")
+        redirect_uri = os.environ.get("META_REDIRECT_URI", "")
+        if not (app_id and app_secret and redirect_uri):
+            return _redirect("erro")
+        try:
+            async with httpx.AsyncClient(timeout=20) as cli:
+                # 1) code -> token de curta duração
+                tok = await cli.get("https://graph.facebook.com/v19.0/oauth/access_token", params={
+                    "client_id": app_id, "client_secret": app_secret,
+                    "redirect_uri": redirect_uri, "code": code})
+                if tok.status_code != 200:
+                    return _redirect("erro")
+                short = tok.json().get("access_token", "")
+                if not short:
+                    return _redirect("erro")
+                # 2) curta -> longa duração (~60 dias)
+                lng = await cli.get("https://graph.facebook.com/v19.0/oauth/access_token", params={
+                    "grant_type": "fb_exchange_token", "client_id": app_id,
+                    "client_secret": app_secret, "fb_exchange_token": short})
+                access_token = (lng.json().get("access_token") if lng.status_code == 200 else short) or short
+                # 3) descobre a conta Instagram Business ligada a uma página
+                ig_id = ""; page_id = ""; page_name = ""
+                acc = await cli.get("https://graph.facebook.com/v19.0/me/accounts", params={
+                    "access_token": access_token, "fields": "instagram_business_account,name,id"})
+                if acc.status_code == 200:
+                    for page in acc.json().get("data", []):
+                        ig = page.get("instagram_business_account")
+                        if ig:
+                            ig_id = ig["id"]; page_id = page["id"]; page_name = page.get("name", "")
+                            break
+        except Exception:
+            return _redirect("erro")
+
+        await db.meta_connections.update_one({"client_id": client_id}, {"$set": {
+            "client_id": client_id, "access_token": access_token,
+            "instagram_business_id": ig_id, "page_id": page_id, "page_name": page_name,
+            "source": "oauth", "connected_at": now_iso(), "updated_at": now_iso(),
+        }}, upsert=True)
+        return _redirect("connected" if ig_id else "sem_instagram")
 
     # =============== Reuniões com Ata ===============
     class MeetingIn(BaseModel):
@@ -324,12 +384,19 @@ Responda EXATAMENTE neste schema JSON (sem markdown):
         await db.proposals.insert_one(doc)
         return {k: v for k, v in doc.items() if k != "_id"}
 
+    # Campos que o cliente NÃO pode reescrever livremente numa edição de proposta.
+    PROPOSAL_EDITABLE = {"title", "client_name", "client_email", "services", "total",
+                         "validity_days", "conditions", "summary", "lead_id", "client_id"}
+
     @router.patch("/proposals/{pid}")
     async def update_proposal(pid: str, data: dict, user: dict = Depends(get_current_user)):
         if user["role"].startswith("client"):
             raise HTTPException(403)
-        data["updated_at"] = now_iso()
-        await db.proposals.update_one({"id": pid}, {"$set": data})
+        upd = {k: v for k, v in data.items() if k in PROPOSAL_EDITABLE}
+        upd["updated_at"] = now_iso()
+        r = await db.proposals.update_one({"id": pid}, {"$set": upd})
+        if r.matched_count == 0:
+            raise HTTPException(404, "Proposta não encontrada")
         return await db.proposals.find_one({"id": pid}, {"_id": 0})
 
     @router.post("/proposals/{pid}/send")
@@ -473,13 +540,19 @@ Responda EXATAMENTE neste schema JSON (sem markdown):
             a = await db.agencies.find_one({"id": "vibrae-primary"}, {"_id": 0})
         return a
 
+    # Só marca/identidade visual e contato podem ser editados aqui. Plano, status de
+    # assinatura e IDs do Stripe são controlados pelo fluxo de pagamento, nunca pela UI.
+    AGENCY_EDITABLE = {"trade_name", "contact_email", "contact_name", "phone", "subdomain",
+                       "color_primary", "color_secondary", "logo_text"}
+
     @router.put("/agencies/current")
     async def update_current_agency(data: dict, user: dict = Depends(get_current_user)):
         if user["role"] not in ("superadmin", "diretoria"):
             raise HTTPException(403)
         agency_id = user.get("agency_id") or "vibrae-primary"
-        data["updated_at"] = now_iso()
-        await db.agencies.update_one({"id": agency_id}, {"$set": data}, upsert=True)
+        upd = {k: v for k, v in data.items() if k in AGENCY_EDITABLE}
+        upd["updated_at"] = now_iso()
+        await db.agencies.update_one({"id": agency_id}, {"$set": upd}, upsert=True)
         return await db.agencies.find_one({"id": agency_id}, {"_id": 0})
 
     class SignupIn(BaseModel):
@@ -493,14 +566,45 @@ Responda EXATAMENTE neste schema JSON (sem markdown):
 
     @router.post("/agencies/signup")
     async def agency_signup(data: SignupIn):
-        """Cria agência + admin + inicia checkout do Stripe."""
+        """Cria agência + admin + inicia checkout do Stripe.
+
+        Ordem importa: primeiro validamos e criamos o checkout no Stripe (chamada
+        externa que pode falhar) e só DEPOIS gravamos no banco. Assim, se o Stripe
+        falhar, nenhum registro órfão fica no banco e o e-mail continua livre para
+        nova tentativa.
+        """
         import bcrypt
         # verifica se email já existe
-        if await db.users.find_one({"email": data.contact_email.lower()}):
+        email = data.contact_email.lower().strip()
+        if await db.users.find_one({"email": email}):
             raise HTTPException(400, "E-mail já cadastrado. Faça login.")
+
         agency_id = str(uuid.uuid4())
+        user_id = str(uuid.uuid4())
         subdomain = "".join(c for c in data.trade_name.lower() if c.isalnum())[:20] or agency_id[:8]
-        # cria agência
+
+        # 1) valida o plano e cria o checkout no Stripe ANTES de gravar qualquer coisa
+        try:
+            prices = stripe.Price.list(lookup_keys=[data.plan_lookup_key], active=True, limit=1).data
+        except stripe.error.StripeError as e:
+            raise HTTPException(502, f"Falha ao consultar planos no Stripe: {str(e)[:150]}")
+        if not prices:
+            raise HTTPException(400, "Plano inválido")
+        price = prices[0]
+        try:
+            session = stripe.checkout.Session.create(
+                line_items=[{"price": price.id, "quantity": 1}],
+                mode="subscription",
+                success_url=f"{data.origin_url}/agencia/pagamento/sucesso?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{data.origin_url}/agencia/pagamento/cancelar",
+                metadata={"agency_id": agency_id, "user_id": user_id, "plan": data.plan_lookup_key},
+                customer_email=email,
+            )
+        except stripe.error.StripeError as e:
+            raise HTTPException(502, f"Falha ao criar o checkout no Stripe: {str(e)[:150]}")
+
+        # 2) Stripe OK — agora sim persistimos agência + admin + transação
+        now = now_iso()
         await db.agencies.insert_one({
             "id": agency_id,
             "trade_name": data.trade_name,
@@ -510,40 +614,24 @@ Responda EXATAMENTE neste schema JSON (sem markdown):
             "subdomain": subdomain,
             "color_primary": "#A18133",
             "color_secondary": "#231F20",
-            "logo_text": data.trade_name.split()[0][:12].upper(),
+            "logo_text": data.trade_name.split()[0][:12].upper() if data.trade_name.split() else "AGENCIA",
             "plan": data.plan_lookup_key,
             "subscription_status": "pending",
-            "created_at": now_iso(),
+            "created_at": now,
         })
-        # cria admin
         pw_hash = bcrypt.hashpw(data.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        user_id = str(uuid.uuid4())
         await db.users.insert_one({
-            "id": user_id, "email": data.contact_email.lower(),
+            "id": user_id, "email": email,
             "password_hash": pw_hash, "name": data.contact_name,
             "role": "superadmin", "agency_id": agency_id,
-            "created_at": now_iso(),
+            "created_at": now,
         })
-        # cria checkout Stripe
-        prices = stripe.Price.list(lookup_keys=[data.plan_lookup_key], active=True, limit=1).data
-        if not prices:
-            raise HTTPException(400, "Plano inválido")
-        price = prices[0]
-        session = stripe.checkout.Session.create(
-            line_items=[{"price": price.id, "quantity": 1}],
-            mode="subscription",
-            success_url=f"{data.origin_url}/agencia/pagamento/sucesso?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{data.origin_url}/agencia/pagamento/cancelar",
-            metadata={"agency_id": agency_id, "user_id": user_id, "plan": data.plan_lookup_key},
-            customer_email=data.contact_email,
-        )
-        # registra payment_transaction
         await db.payment_transactions.insert_one({
             "session_id": session.id, "agency_id": agency_id, "user_id": user_id,
             "lookup_key": data.plan_lookup_key,
             "amount": (price.unit_amount or 0) / 100.0, "currency": price.currency,
             "status": "initiated", "payment_status": "pending",
-            "created_at": now_iso(), "updated_at": now_iso(),
+            "created_at": now, "updated_at": now,
         })
         return {"checkout_url": session.url, "session_id": session.id, "agency_id": agency_id}
 
