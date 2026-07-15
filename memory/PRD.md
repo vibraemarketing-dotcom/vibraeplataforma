@@ -50,3 +50,44 @@ Backend: 20+ endpoints REST, JWT com roles, isolamento RLS-like (client_admin s�
 
 ## Credenciais demo
 Veja `/app/memory/test_credentials.md`.
+
+## Fase 2 — Entregue 15/02/2026
+
+### Módulos novos
+1. **IA VIBRAE** (`/app/ia`)
+   - Modelo: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`) via `EMERGENT_LLM_KEY`
+   - Ferramentas: legenda, roteiro de Reels, ideias, carrossel, hashtags
+   - Sempre condicionada ao Brand Kit (tom, público, pilares, palavras proibidas, conselho)
+   - System prompt bloqueia promessas absolutas, superlativos e sensacionalismo
+   - Histórico de gerações persistido em `ai_generations`
+2. **Brand Kit** (aba dentro de cada cliente)
+   - Tom de voz, público, persona, arquétipo, pilares, palavras permitidas/proibidas, CTAs, cores, conselho + registro
+   - Consumido pela IA VIBRAE e pelo Compliance
+3. **Compliance Saúde**
+   - Motor de regras regex universais + específicas por conselho (CFM, CRO, CRN, CFBM, COFFITO, COFEN, CFP, CFF, estética)
+   - Classificação: baixo / atenção / alto / bloqueado
+   - Auto-executa antes de "Enviar ao cliente" — bloqueia se `bloqueado`, alerta se `alto`
+   - Disclaimer explícito de que não substitui avaliação humana/jurídica
+4. **Financeiro** (`/app/financeiro`)
+   - KPIs: MRR, receita/despesas do mês, lucro estimado, inadimplência
+   - Fluxo de caixa 6 meses (LineChart)
+   - Transações com filtros + baixa manual
+   - Rentabilidade por cliente com rating (muito_rentavel / rentavel / atenção / prejuizo)
+5. **Calendário Editorial** (`/app/calendario`)
+   - Grid mensal com eventos de `content.scheduled_at`
+   - Cards coloridos por status, cliente e formato
+   - **Drag-and-drop** para reagendar (PATCH conteúdo)
+   - Detecção de conflito (>3 no mesmo dia) + datas comemorativas de saúde/marketing
+
+### Testes iteração 3
+Backend 17/17 pass · Frontend 100% · Sem regressões na Fase 1.
+
+## Fase 3 — Backlog restante
+- Stories (sequências), Roteiros exportáveis, Captações
+- Gerador de artes (editor visual)
+- Tarefas & Projetos com Gantt
+- Relatórios com integrações reais (Meta/GA4/GBP/TikTok/YouTube)
+- Google Drive/Calendar OAuth por cliente
+- Reuniões (transcrição, decisões → tarefas)
+- Base de conhecimento
+- Propostas em PDF + contratos com renovação
