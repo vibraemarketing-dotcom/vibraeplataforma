@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { http, currency, waLink } from "@/lib/api";
 import { TID } from "@/constants/testIds";
 import { MessageCircle, ChevronRight, Users } from "lucide-react";
@@ -13,6 +13,7 @@ const STATUS = {
 
 export default function Clients() {
   const [clients, setClients] = useState([]);
+  const navigate = useNavigate();
   useEffect(() => { http.get("/clients").then(r => setClients(r.data)); }, []);
 
   return (
@@ -34,8 +35,8 @@ export default function Clients() {
         {clients.map((c) => {
           const st = STATUS[c.status] || STATUS.ativo;
           return (
-            <Link key={c.id} to={`/app/clientes/${c.id}`} data-testid={`${TID.clientCard}-${c.id}`}
-              className="card-elev p-6 hover:shadow-md transition group">
+            <div key={c.id} onClick={() => navigate(`/app/clientes/${c.id}`)} data-testid={`${TID.clientCard}-${c.id}`}
+              className="card-elev p-6 hover:shadow-md transition group cursor-pointer">
               <div className="flex items-start justify-between">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg"
                      style={{ background: "#231F20", color: "#A18133" }}>
@@ -65,7 +66,7 @@ export default function Clients() {
                   <ChevronRight size={16} className="group-hover:translate-x-1 transition" style={{ color: "#A18133" }} />
                 </div>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>
