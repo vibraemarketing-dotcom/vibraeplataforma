@@ -162,6 +162,12 @@ async def login(data: LoginIn, response: Response):
     u = await db.users.find_one({"email": email})
     if not u or not verify_password(data.password, u["password_hash"]):
         raise HTTPException(401, "E-mail ou senha inválidos")
+    # Portão de assinatura: usuários vinculados a uma agência só entram se ela
+    # estiver com assinatura ativa. A equipe interna VIBRAE (sem agency_id) não é afetada.
+    if u.get("agency_id"):
+        agency = await db.agencies.find_one({"id": u["agency_id"]}, {"_id": 0, "subscription_status": 1})
+        if agency and agency.get("subscription_status") not in ("active", "trialing"):
+            raise HTTPException(402, "Assinatura pendente ou inativa. Conclua o pagamento para acessar o sistema.")
     token = create_access_token(u["id"], u["email"], u["role"])
     response.set_cookie("access_token", token, httponly=True, secure=False, samesite="lax", max_age=43200, path="/")
     return {

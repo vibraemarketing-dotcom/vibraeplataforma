@@ -55,12 +55,17 @@ def build_phase3_router(db, get_current_user):
         await db.story_sequences.insert_one(doc)
         return {k: v for k, v in doc.items() if k != "_id"}
 
+    # Edição de conteúdo da sequência. Status/versão só mudam pelos endpoints de
+    # aprovação, nunca por um PATCH direto.
+    SEQUENCE_EDITABLE = {"title", "objective", "scheduled_at", "frames"}
+
     @router.patch("/story-sequences/{sid}")
     async def update_sequence(sid: str, data: dict, user: dict = Depends(get_current_user)):
         if user["role"].startswith("client"):
             raise HTTPException(403)
-        data["updated_at"] = now_iso()
-        r = await db.story_sequences.update_one({"id": sid}, {"$set": data})
+        upd = {k: v for k, v in data.items() if k in SEQUENCE_EDITABLE}
+        upd["updated_at"] = now_iso()
+        r = await db.story_sequences.update_one({"id": sid}, {"$set": upd})
         if r.matched_count == 0:
             raise HTTPException(404)
         return await db.story_sequences.find_one({"id": sid}, {"_id": 0})

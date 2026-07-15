@@ -25,6 +25,17 @@ export default function Integrations() {
   }, [clientId]);
   useEffect(() => { load(); }, [load]);
 
+  // Retorno do OAuth do Meta: /app/integracoes?meta=connected|erro|sem_instagram
+  useEffect(() => {
+    const meta = new URLSearchParams(window.location.search).get("meta");
+    if (!meta) return;
+    if (meta === "connected") toast.success("Conta Meta conectada com sucesso!");
+    else if (meta === "sem_instagram") toast.warning("Conta conectada, mas nenhum Instagram Business foi encontrado na página vinculada.");
+    else toast.error("Não foi possível conectar a conta Meta. Tente novamente.");
+    window.history.replaceState({}, "", window.location.pathname);
+    load();
+  }, [load]);
+
   async function sync() {
     setSyncing(true);
     try {
