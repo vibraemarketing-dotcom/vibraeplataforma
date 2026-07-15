@@ -91,3 +91,46 @@ Backend 17/17 pass · Frontend 100% · Sem regressões na Fase 1.
 - Reuniões (transcrição, decisões → tarefas)
 - Base de conhecimento
 - Propostas em PDF + contratos com renovação
+
+## Fase 3 — Entregue 15/02/2026
+
+### Módulos novos
+1. **Gerador de Artes** (`/app/artes`)
+   - Editor canvas com camadas (texto, logo VIBRAE)
+   - Formatos: Story 1080×1920, Feed 1080×1350, Quadrado, Capa Reels
+   - Aplica cores do Brand Kit automaticamente
+   - Fontes: Montserrat, Cormorant Garamond, Playfair, Georgia, Helvetica
+   - Exporta PNG em 2× resolução via `html-to-image`
+2. **Stories em Sequência** (`/app/stories`)
+   - Builder com preview em iPhone (progress bars, interações)
+   - Interações: enquete, caixa de perguntas, link, CTA
+   - Editor por frame (texto, cores, mídia, enquete)
+   - **Aprovação em lote**: aprovar sequência inteira ou solicitar ajustes globais
+   - Versionamento e histórico completo
+3. **Relatórios de Instagram** (`/app/relatorios`)
+   - **Modo Demonstração** (Meta OAuth deferido para Fase 4)
+   - 12 métricas: seguidores, alcance, impressões, engajamento, salvamentos, compart., cliques site, stories reach, reels views
+   - Editor mensal: resumo, destaques, aprendizados, riscos, próximos passos, notas
+   - Gráfico evolução seguidores + alcance
+   - Detalhamento com top conteúdos do mês + impressão/PDF
+4. **Tarefas com Gantt** (`/app/tarefas`)
+   - Timeline horizontal 30 dias, agrupada por responsável
+   - Barras coloridas por status + tipo (captação/campanha/produção/geral)
+   - Clique cicla status pendente → em andamento → concluída
+   - **Capacidade da equipe**: disponivel / bem_distribuido / proximo_limite / sobrecarregado
+   - Alerta visual quando há sobrecarga
+
+### Testes iteração 4
+Backend 19/19 pass · Frontend 100% em todos os 4 módulos · Sem regressões nas 8 features anteriores. Suíte pytest: `/app/backend/tests/test_phase3.py`.
+
+## Fase 4 — Backlog restante
+- Integração real Meta/Instagram Insights (OAuth) → substituir Modo Demonstração dos relatórios
+- Google Drive/Calendar OAuth por cliente
+- Central de integrações (Zapier, Make, webhooks, WhatsApp Business)
+- Reuniões (Meet/Zoom + transcrição → decisões → tarefas)
+- Base de conhecimento (SOPs, modelos, políticas)
+- Propostas comerciais em PDF + fluxo de assinatura
+- Contratos com renovação/reajuste automático
+- Notificações em tempo real (WebSocket)
+- Automações internas: proposta aceita → cliente → onboarding → tarefas
+- Portal público white-label (multi-agência SaaS)
